@@ -1,0 +1,64 @@
+
+mbIdentifyUnusedCssPlugin
+--------
+
+PHP framework symfony plugin for identify unused styles and classes (from declared CSS) in pages
+
+
+Description
+--------
+Plugin CSS scanner will be looking for and will be scanning any embedded or external CSS files in your HTML code.
+In result you will get report in specific formats: JSON, XML, HTML, PLAIN TEXT.
+
+Use cases by examples
+--------
+1) Get unused CSS from one website
+
+<?php
+
+require_once 'lib/IdentifyUnusedCss.class.php';
+
+define('SET_VERBOSE_MODE', true);
+
+$_iucss = new IdentifyUnusedCss();
+$_iucss->init(SET_VERBOSE_MODE);
+$_iucss->setPageUrl('http://bieli.net/index.html');
+
+$_iucss->runScanner();
+
+var_dump(
+$_iucss->getAllCssData()
+);
+
+var_dump(
+$_iucss->getRaport(self::PLAIN_TEXT)
+);
+
+?>
+
+2) Get unuset CSS from many websites links
+
+<?php
+
+require_once 'lib/IdentifyUnusedCss.class.php';
+
+define('SET_VERBOSE_MODE', true);
+
+$_iucss = new IdentifyUnusedCss();
+$_iucss->init(SET_VERBOSE_MODE);
+$_iucss->addPageUrl('http://bieli.net/index.html');
+$_iucss->addtPageUrl('http://bieli.net/kontakt.html');
+$_iucss->addtPageUrl('file:////tmp/test.html');
+
+$_iucss->runScanner();
+
+var_dump(
+$_iucss->getAllCssData()
+);
+
+var_dump(
+$_iucss->getRaport(self::PLAIN_TEXT)
+);
+
+?>
+

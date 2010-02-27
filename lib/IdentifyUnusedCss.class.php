@@ -1,6 +1,11 @@
 <?php
 
-class IdentifyUnusedCss implements IdentifyUnusedCssInterface
+require_once 'IdentifyUnusedCssInterface.class.php';
+require_once 'IdentifyUnusedCssException.class.php';
+require_once 'SimpleVerboseSupport.class.php';
+
+class IdentifyUnusedCss extends SimpleVerboseSupport
+implements IdentifyUnusedCssInterface
 {
     const STYLE_TAGS_EXISTS_PATTERN = '<style( *[\n]*.*)>\n*(.\n*)*<\/style>';
     const CSS_IMPORTS_PATTERN 
@@ -8,56 +13,74 @@ class IdentifyUnusedCss implements IdentifyUnusedCssInterface
     const CSS_IMPORTS_URL_REPLACE_PATTERN 
         = "/(@\s*import\s*)|(url\(?((\"|')?))|(\"|'){1}|\)?(\"|')?;|(\s)/";
 
-    private $VerboseMode = false;
+    private $pagesUrls = array();
 
-    private $PageUrl = '';
+    private $pageContents = '';
 
-    private $PageContents = '';
-
-    private $IncludedCssData = array();
+    private $includedCssData = array();
 
     public function init($i_VerboseMode = false)
     {
-        $this->VerboseMode = $i_VerboseMode;
+        $this->setVerbose($i_VerboseMode);
+//        $this->setDebug($i_VerboseMode);
 
         return true;
     }
 
-    public function setPageUrl($i_PageUrl)
+    public function addPageUrl($i_PageUrl)
     {
         $o_Result = false;
 
-        if ( true === $this->validateUrlAddress($i_PageUrl) )
+        if ( 0 < strlen($i_PageUrl) )
         {
-            $this->PageUrl      = $i_PageUrl;
-
-            //TODO: add user error handler only for function "file_get_contents"
-            $this->PageContents = file_get_contents($this->PageUrl);
-
-            if ( false !== $this->PageContents )
+            if ( true === $this->validateUrlAddress($i_PageUrl) )
             {
-                $this->PageContents = trim($this->PageContents);
+                $this->addLog('Get contents from validated URL: ' . $i_PageUrl);
 
-                if ( 0 < strlen($this->PageContents) )
+                $this->pagesUrls[ $i_PageUrl ] = array();
+
+                //TODO: add user error handler only
+                // for function "file_get_contents"
+                $this->pageContents = file_get_contents($i_PageUrl);
+
+                if ( false !== $this->pageContents )
                 {
-                    $o_Result = true;
+                    $this->pageContents = trim($this->pageContents);
+
+                    $this->addLog('Got content lenght: '
+                                  . strlen($this->pageContents));
+
+                    if ( 0 < strlen($this->pageContents) )
+                    {
+                        $this->pagesUrls[ $i_PageUrl ] = $this->pageContents;
+
+                        $this->addLog('Add page URL: "' . $i_PageUrl
+                                      . '" to scanning data');
+
+                        $o_Result = true;
+                    }
+                    else
+                    {
+                        throw new IdentifyUnusedCssException(
+                            'Problem with empty page contents from page: '
+                            . $this->pagesUrls);
+                    }
                 }
                 else
                 {
                     throw new IdentifyUnusedCssException(
-                        'Problem with empty page contents from page: '
-                        . $this->PageUrl);
+                        'Problem with get contents from page: '
+                        . $this->pagesUrls);
                 }
             }
             else
             {
-                throw new IdentifyUnusedCssException(
-                    'Problem with get contents from page: ' . $this->PageUrl);
+                throw new IdentifyUnusedCssException('Not valid URL address');
             }
         }
         else
         {
-            throw new IdentifyUnusedCssException('Not valid URL address');
+            throw new IdentifyUnusedCssException('No page specify to scan');
         }
 
         return $o_Result;
@@ -65,15 +88,15 @@ class IdentifyUnusedCss implements IdentifyUnusedCssInterface
 
     public function runScanner()
     {
-        if ( true === is_array($this->IncludedCssData)
-             && 0 < count($this->IncludedCssData) )
+        if ( true === is_array($this->includedCssData)
+             && 0 < count($this->includedCssData) )
         {
             $this->allStylesDefinitions = $this->getAllStylesDefinitions(
-                                                    $this->IncludedCssData);
+                                                    $this->includedCssData);
 
             foreach ( $this->allStylesDefinitions as $_styleDef => $_value )
             {
-                if ( false !== strpos($this->PageContents, $_styleDef) )
+                if ( false !== strpos($this->pageContents, $_styleDef) )
                 {
                     //TODO
                 }
@@ -86,20 +109,20 @@ class IdentifyUnusedCss implements IdentifyUnusedCssInterface
         else
         {
             throw new IdentifyUnusedCssException(
-                'Scener has no data to scen - maybe page has not CSS');
+                'Scaner has no data to scan - maybe page has not CSS');
         }
     }
 
     public function getAllCssData()
     {
-        if ( 0 < strlen($this->PageUrl) )
+        if ( 0 < strlen($this->pagesUrls) )
         {
-           $_result = $this->getAllCssLinksAndIncludes($this->PageContents);
+           $_result = $this->getAllCssLinksAndIncludes($this->pageContents);
         }
         else
         {
             throw new IdentifyUnusedCssException(
-                'Please use metdhod "->setPageUrl()" first with validated URL '
+                'Please use metdhod "->addpagesUrls()" first with validated URL '
                 . ' address parameter');
         }
     }
@@ -109,12 +132,16 @@ class IdentifyUnusedCss implements IdentifyUnusedCssInterface
         
     }
 
-    private validateUrlAddress($i_UrlAddress)
+    private function validateUrlAddress($i_UrlAddress)
     {
+        $o_Result = true;
+
         //TODO: use sfValidator for URL address from framework
+
+        return $o_Result;
     }
 
-    private getAllCssLinksAndIncludes($i_PageContent)
+    private function getAllCssLinksAndIncludes($i_PageContent)
     {
         if ( true === ereg(self::STYLE_TAGS_EXISTS_PATTERN, $i_PageContent) )
         {
